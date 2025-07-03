@@ -1,0 +1,104 @@
+# fastapi-app.yaml
+# Kubernetes resources for the FastAPI trading-scraper service:
+#   • ConfigMap (fastapi-config)
+#   • Secrets (alpaca-credentials, app-secrets)
+#   • Deployment (fastapi-deployment)
+#   • Service (fastapi-service)
+
+
+---
+# ConfigMap for non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-config
+data:
+  ENVIRONMENT: "production"
+
+---
+# Secret for Alpaca API credentials (Opaque Secret)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alpaca-credentials
+type: Opaque
+stringData:
+  ALPACA_API_KEY_ID: "PKQ339A898RGXEO6NK9F"
+  ALPACA_SECRET_KEY: "u1IFlQhrUy097zSB7zOa2LGDxeO2GRia3yCP0aK7"
+
+---
+# Secret for other sensitive application credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+type: Opaque
+stringData:
+  # SEC API Key
+  SEC_API_KEY: "210b94e2ab8c1bff645eae6108f9cf2d5c7262ced3cde83c1c67f449d70ba4a2"
+  # Database credentials
+  DB_HOST: "localhost"
+  DB_PORT: "5432"
+  DB_NAME: "market_data"
+  DB_USER: "postgres"
+  DB_PASSWORD: "Nn_325tasa"
+  # Pinecone API Key
+  PINECONE_API_KEY: "pcsk_5Z8FxK_JMHiuPyZEA3NT8Ee7uaRTpnunX71wK4HZR3agHniVbDz2VHurXjwRsefYfb3HUb"
+  # Google API Key
+  GOOGLE_API_KEY: "AIzaSyC_DnWT0J99M1GtT767iLvuSUzKf43TCOo"
+
+---
+# Deployment manifest
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fastapi-app
+  template:
+    metadata:
+      labels:
+        app: fastapi-app
+    spec:
+      containers:
+        - name: fastapi-container
+          image: nourtaqatqa065/fastapi-app:latest  # replace with your built image name #deleted the latest portion
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: fastapi-config
+            - secretRef:
+                name: alpaca-credentials
+            - secretRef:
+                name: app-secrets
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+
+---
+# Service manifest to expose the Deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-service
+spec:
+  type: ClusterIP
+  selector:
+    app: fastapi-app
+  ports:
+    - protocol: TCP
+      port: 80        # ClusterIP port
+      targetPort: 8000  # container port

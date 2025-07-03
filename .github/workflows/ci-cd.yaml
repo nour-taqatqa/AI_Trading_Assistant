@@ -1,0 +1,76 @@
+# .github/workflows/ci-cd.yaml
+name: CI/CD FastAPI to Kubernetes
+
+# This workflow uses the following repository secrets:
+#   DOCKERHUB_USERNAME   - your Docker Hub username
+#   DOCKERHUB_TOKEN      - your Docker Hub personal access token
+#   KUBE_CONFIG_DATA      - base64-encoded kubeconfig file contents
+#   IMAGE_NAME            - e.g. nourtaqatqa065/fastapi-app (set as a secret or env)
+# The secret KUBE_CONFIG_DATA should be created by running:
+#   cat ~/.kube/config | base64 | tr -d '\n'
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}        # Docker image name (or set directly)
+  IMAGE_TAG: ${{ github.sha }}                 # commit SHA tag
+  K8S_DEPLOYMENT: fastapi-deployment
+  K8S_CONTAINER: fastapi-container
+  KUBE_NAMESPACE: default
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 --decode > ~/.kube/config
+
+      - name: Update image in K8s manifest
+        run: |
+          sed -i 's|image:.*|image: ${{ env.IMAGE_NAME }}:latest|' k8s/fastapi-app.yaml
+
+      - name: Apply Kubernetes manifests
+        run: |
+          kubectl apply -n ${{ env.KUBE_NAMESPACE }} -f k8s/fastapi-app.yaml
+          kubectl rollout status deployment/${{ env.K8S_DEPLOYMENT }} -n ${{ env.KUBE_NAMESPACE }}
+          kubectl set image deployment/${{ env.K8S_DEPLOYMENT }} ${{ env.K8S_CONTAINER }}=${{ env.IMAGE_NAME }}:latest -n ${{ env.KUBE_NAMESPACE }}
