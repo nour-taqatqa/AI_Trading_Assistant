@@ -67,10 +67,10 @@ jobs:
 
       - name: Update image in K8s manifest
         run: |
-          sed -i 's|image:.*|image: ${{ env.IMAGE_NAME }}:latest|' k8s/fastapi-app.yaml
+          sed -i 's|image:.*|image: ${{ env.IMAGE_NAME }}:latest|' manifests/fastapi-app.yaml
 
       - name: Apply Kubernetes manifests
         run: |
-          kubectl apply -n ${{ env.KUBE_NAMESPACE }} -f k8s/fastapi-app.yaml
+          kubectl apply -n ${{ env.KUBE_NAMESPACE }} -f manifests/fastapi-app.yaml
           kubectl rollout status deployment/${{ env.K8S_DEPLOYMENT }} -n ${{ env.KUBE_NAMESPACE }}
           kubectl set image deployment/${{ env.K8S_DEPLOYMENT }} ${{ env.K8S_CONTAINER }}=${{ env.IMAGE_NAME }}:latest -n ${{ env.KUBE_NAMESPACE }}
