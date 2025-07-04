@@ -15,7 +15,7 @@ on:
       - main
 
 env:
-  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}        # Docker image name (or set directly)
+  IMAGE_NAME: nourtaqatqa065/fastapi-app        # Docker image name
   IMAGE_TAG: ${{ github.sha }}                 # commit SHA tag
   K8S_DEPLOYMENT: fastapi-deployment
   K8S_CONTAINER: fastapi-container
