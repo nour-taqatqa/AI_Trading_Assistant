@@ -1,10 +1,5 @@
 # fastapi-app.yaml
 # Kubernetes resources for the FastAPI trading-scraper service:
-#   • ConfigMap (fastapi-config)
-#   • Secrets (alpaca-credentials, app-secrets)
-#   • Deployment (fastapi-deployment)
-#   • Service (fastapi-service)
-
 
 ---
 # ConfigMap for non-sensitive configuration
@@ -16,7 +11,7 @@ data:
   ENVIRONMENT: "production"
 
 ---
-# Secret for Alpaca API credentials (Opaque Secret)
+# Secret for Alpaca API credentials
 apiVersion: v1
 kind: Secret
 metadata:
@@ -34,17 +29,13 @@ metadata:
   name: app-secrets
 type: Opaque
 stringData:
-  # SEC API Key
   SEC_API_KEY: "210b94e2ab8c1bff645eae6108f9cf2d5c7262ced3cde83c1c67f449d70ba4a2"
-  # Database credentials
   DB_HOST: "localhost"
   DB_PORT: "5432"
   DB_NAME: "market_data"
   DB_USER: "postgres"
   DB_PASSWORD: "Nn_325tasa"
-  # Pinecone API Key
   PINECONE_API_KEY: "pcsk_5Z8FxK_JMHiuPyZEA3NT8Ee7uaRTpnunX71wK4HZR3agHniVbDz2VHurXjwRsefYfb3HUb"
-  # Google API Key
   GOOGLE_API_KEY: "AIzaSyC_DnWT0J99M1GtT767iLvuSUzKf43TCOo"
 
 ---
@@ -65,9 +56,16 @@ spec:
     spec:
       containers:
         - name: fastapi-container
-          image: nourtaqatqa065/fastapi-app:latest  # replace with your built image name #deleted the latest portion
+          image: nourtaqatqa065/fastapi-app  # replace with your built image name
           ports:
             - containerPort: 8000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
           envFrom:
             - configMapRef:
                 name: fastapi-config
