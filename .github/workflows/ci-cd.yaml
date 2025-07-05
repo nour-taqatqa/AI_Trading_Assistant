@@ -49,13 +49,10 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # Install kubectl + GKE auth plugin via Google Action
-      - name: Set up kubectl
-        uses: google-github-actions/setup-kubectl@v1
-        with:
-          version: 'latest'
-          gcloud_install: true
-          gke_auth: true
+      - name: Install kubectl and GKE auth plugin
+        run: |
+          gcloud components install kubectl gke-gcloud-auth-plugin --quiet
+
 
       # Fetch cluster credentials
       - name: Get GKE credentials
