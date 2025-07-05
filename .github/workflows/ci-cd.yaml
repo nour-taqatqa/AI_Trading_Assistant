@@ -1,22 +1,12 @@
 # .github/workflows/ci-cd.yaml
-name: CI/CD FastAPI to Kubernetes
-
-# This workflow uses the following repository secrets:
-#   DOCKERHUB_USERNAME   - your Docker Hub username
-#   DOCKERHUB_TOKEN      - your Docker Hub personal access token
-#   KUBE_CONFIG_DATA      - base64-encoded kubeconfig file contents
-#   IMAGE_NAME            - e.g. nourtaqatqa065/fastapi-app (set as a secret or env)
-# The secret KUBE_CONFIG_DATA should be created by running:
-#   cat ~/.kube/config | base64 | tr -d '\n'
+name: CI/CD FastAPI to GKE (Autopilot)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 env:
-  IMAGE_NAME: nourtaqatqa065/fastapi-app        # Docker image name
-  IMAGE_TAG: ${{ github.sha }}                 # commit SHA tag
+  IMAGE_NAME: nourtaqatqa065/fastapi-app
   K8S_DEPLOYMENT: fastapi-deployment
   K8S_CONTAINER: fastapi-container
   KUBE_NAMESPACE: default
@@ -44,46 +34,46 @@ jobs:
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:latest
-            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-  jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # 1) Authenticate to GCP using your service-account JSON
+      # Authenticate to GCP with service account key
       - name: Authenticate to GCP
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      # 2) Install kubectl and the GKE auth plugin via Google’s action
+      # Install kubectl + GKE auth plugin via Google Action
       - name: Set up kubectl
         uses: google-github-actions/setup-kubectl@v3
         with:
           version: 'latest'
-          gcloud_install: true          # install Google Cloud SDK
-          gke_auth: true                # install the gke-gcloud-auth-plugin
+          gcloud_install: true
+          gke_auth: true
 
-      # 3) Fetch your GKE cluster credentials so that `kubectl` just works
+      # Fetch cluster credentials
       - name: Get GKE credentials
         uses: google-github-actions/get-gke-credentials@v1
         with:
           cluster_name: fastapi-gke-cluster
-          location: us-central1         # or us-central1-a if zonal
+          location: us-central1
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      # 4) Update the image reference in your manifest
-      - name: Update image in manifests
+      # Update image reference
+      - name: Update image in K8s manifest
         run: |
           sed -i 's|image:.*|image: ${{ env.IMAGE_NAME }}:latest|' manifests/fastapi-app.yaml
 
-      # 5) Deploy!
-      - name: kubectl apply & rollout
+      # Deploy to GKE Autopilot
+      - name: Apply manifests and rollout
         run: |
           kubectl apply -n ${{ env.KUBE_NAMESPACE }} -f manifests/fastapi-app.yaml
           kubectl rollout status deployment/${{ env.K8S_DEPLOYMENT }} -n ${{ env.KUBE_NAMESPACE }}
+
 
